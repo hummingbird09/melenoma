@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Patient {
+  id            String        @id
+  name          String
+  email         String        @unique
+  dateOfBirth   DateTime?
+  createdAt     DateTime      @default(now())
+  moles         Mole[]
+  appointments  Appointment[]
+  prescriptions Prescription[]
+}
+
+model Doctor {
+  id            String        @id
+  name          String
+  email         String        @unique
+  clinicName    String?
+  createdAt     DateTime      @default(now())
+  appointments  Appointment[]
+  prescriptions Prescription[]
+}
+
+model Mole {
+  id           String        @id @default(uuid())
+  name         String
+  patientId    String
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  createdAt    DateTime      @default(now())
+  scans        Scan[]
+  appointments Appointment[]
+}
+
+model Scan {
+  id              String   @id @default(uuid())
+  moleId          String
+  mole            Mole     @relation(fields: [moleId], references: [id])
+  imageUrl        String
+  riskScore       Float
+  asymmetry       Boolean  @default(false)
+  borderIrregular Boolean  @default(false)
+  colorUneven     Boolean  @default(false)
+  diameterOver6mm Boolean  @default(false)
+  evolving        Boolean  @default(false)
+  notes           String?
+  createdAt       DateTime @default(now())
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+model Appointment {
+  id         String            @id @default(uuid())
+  patientId  String
+  patient    Patient           @relation(fields: [patientId], references: [id])
+  doctorId   String?
+  doctor     Doctor?           @relation(fields: [doctorId], references: [id])
+  doctorName String?
+  moleId     String?
+  mole       Mole?             @relation(fields: [moleId], references: [id])
+  date       DateTime
+  notes      String?
+  status     AppointmentStatus @default(SCHEDULED)
+  createdAt  DateTime          @default(now())
+}
+
+model Prescription {
+  id        String   @id @default(uuid())
+  doctorId  String
+  doctor    Doctor   @relation(fields: [doctorId], references: [id])
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  pdfUrl    String
+  notes     String?
+  createdAt DateTime @default(now())
+}
