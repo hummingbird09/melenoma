@@ -15,14 +15,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: false, error: 'patientId is required' }, { status: 400 })
     }
 
-    const [moles, scanCount, upcomingAppointments, recentScans] = await Promise.all([
+    // Only scheduled (not cancelled/completed) appointments in the future
+    const upcomingWhere = {
+      patientId,
+      status: 'SCHEDULED' as const,
+      date: { gte: new Date() },
+    }
+
+    const [moles, scanCount, upcomingCount, upcomingAppointments, recentScans] = await Promise.all([
       prisma.mole.findMany({
         where: { patientId },
         include: { scans: { orderBy: { createdAt: 'desc' }, take: 1 } },
       }),
       prisma.scan.count({ where: { mole: { patientId } } }),
+      prisma.appointment.count({ where: upcomingWhere }),
       prisma.appointment.findMany({
-        where: { patientId, date: { gte: new Date() } },
+        where: upcomingWhere,
         orderBy: { date: 'asc' },
         take: 3,
       }),
@@ -50,7 +58,7 @@ export async function GET(request: Request) {
       scanCount,
       highCount,
       medCount,
-      upcomingCount: upcomingAppointments.length,
+      upcomingCount,
       upcomingAppointments,
       recentScans,
     })

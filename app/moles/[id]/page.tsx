@@ -130,13 +130,22 @@ export default function MoleDetailPage() {
               ) : null}
             </div>
 
-            <Link
-              href={`/scan?moleId=${mole.id}`}
-              className="self-start px-4 py-2 text-sm"
-              style={{ background: '#3ED97F', color: '#080B08', borderRadius: 6, fontWeight: 600 }}
-            >
-              + New scan
-            </Link>
+            <div className="flex flex-wrap gap-3 self-start">
+  <Link
+    href={`/scan?moleId=${mole.id}`}
+    className="px-4 py-2 text-sm"
+    style={{ background: '#3ED97F', color: '#080B08', borderRadius: 6, fontWeight: 600 }}
+  >
+    + New scan
+  </Link>
+  <Link
+    href={`/appointments?moleId=${mole.id}`}
+    className="px-4 py-2 text-sm"
+    style={{ color: '#3ED97F', border: '1px solid #3ED97F', borderRadius: 6, fontWeight: 600 }}
+  >
+    Book appointment
+  </Link>
+</div>
 
             <div
               className="flex flex-col gap-4 p-6"

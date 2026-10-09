@@ -3,6 +3,7 @@
 import { Fraunces, Inter } from 'next/font/google'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 const fraunces = Fraunces({ subsets: ['latin'] })
@@ -224,9 +225,14 @@ export default function DashboardPage() {
                 borderRadius: 8,
               }}
             >
-              <h2 className={`${fraunces.className} text-xl`} style={{ color: '#3ED97F' }}>
-                Upcoming appointments
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={`${fraunces.className} text-xl`} style={{ color: '#3ED97F' }}>
+                  Upcoming appointments
+                </h2>
+                <Link href="/appointments" className="text-sm" style={{ color: '#7CA98A' }}>
+                  Manage →
+                </Link>
+              </div>
               {data.upcomingAppointments.length === 0 ? (
                 <p className="text-sm" style={{ color: '#7CA98A' }}>
                   No upcoming appointments. When you book one, it will appear here.
