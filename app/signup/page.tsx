@@ -4,6 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import AuthShell from '@/components/AuthShell'
+
+const fieldClass = 'rounded-xl border border-line bg-surface px-4 py-2.5 text-sm'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -56,60 +59,65 @@ export default function SignUpPage() {
   }
 
   return (
-    <main className="flex min-h-full flex-1 items-center justify-center px-4">
-      <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-4">
-        <h1 className="text-2xl font-semibold">Sign up</h1>
-
-        <label className="flex flex-col gap-1 text-sm">
+    <AuthShell
+      title="Create your account"
+      subtitle="It takes a minute. You can add your first mole right after."
+      footer={
+        <>
+          Already have an account?{' '}
+          <Link href="/login" className="font-semibold text-brand">
+            Log in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
           Name
           <input
             type="text"
             required
+            autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="rounded border border-zinc-300 px-3 py-2"
+            className={fieldClass}
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
           Email
           <input
             type="email"
             required
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded border border-zinc-300 px-3 py-2"
+            className={fieldClass}
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
           Password
           <input
             type="password"
             required
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded border border-zinc-300 px-3 py-2"
+            className={fieldClass}
           />
         </label>
 
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="text-sm text-high">{error}</p> : null}
 
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-zinc-900 px-3 py-2 text-white disabled:opacity-50"
+          className="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
         >
-          {pending ? 'Creating account…' : 'Sign up'}
+          {pending ? 'Creating account…' : 'Create account'}
         </button>
-
-        <p className="text-sm text-zinc-600">
-          Already have an account?{' '}
-          <Link href="/login" className="underline">
-            Log in
-          </Link>
-        </p>
       </form>
-    </main>
+    </AuthShell>
   )
 }

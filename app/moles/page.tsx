@@ -1,13 +1,11 @@
 'use client'
 
-import { Fraunces, Inter } from 'next/font/google'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-
-const fraunces = Fraunces({ subsets: ['latin'] })
-const inter = Inter({ subsets: ['latin'] })
+import AppNav from '@/components/AppNav'
+import RiskLens, { riskTier, TIER } from '@/components/RiskLens'
 
 type Mole = {
   id: string
@@ -15,18 +13,6 @@ type Mole = {
   createdAt: string
   scans: { riskScore: number }[]
 }
-
-function riskTier(riskScore: number): 'low' | 'med' | 'high' {
-  if (riskScore < 0.35) return 'low'
-  if (riskScore < 0.65) return 'med'
-  return 'high'
-}
-
-const TIER_COLOR = {
-  low: '#5FBF7A',
-  med: '#D6A855',
-  high: '#E1584A',
-} as const
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, {
@@ -92,7 +78,7 @@ export default function MolesPage() {
       })
       const result = await response.json()
       if (!response.ok) {
-        setError(result.error ?? 'Failed to create mole.')
+        setError(result.error ?? 'Failed to add mole.')
         return
       }
       setName('')
@@ -105,104 +91,76 @@ export default function MolesPage() {
   }
 
   return (
-    <main className={`${inter.className} min-h-screen`} style={{ background: '#080B08', color: '#E4F1E7' }}>
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
-        <header className="flex items-center justify-between gap-4">
-          <Link href="/dashboard" className="text-sm" style={{ color: '#7CA98A' }}>
-            ← Dashboard
-          </Link>
-        </header>
-
-        <h1 className={`${fraunces.className} text-3xl`} style={{ color: '#3ED97F' }}>
-          My Moles
-        </h1>
+    <>
+      <AppNav />
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8">
+        <div className="flex flex-col gap-1">
+          <h1 className="font-display text-3xl font-semibold tracking-tight">Your moles</h1>
+          <p className="text-ink-soft">Name each mole by where it is, then scan it regularly to track changes.</p>
+        </div>
 
         <form
           onSubmit={handleSubmit}
-          className="flex gap-3 p-6"
-          style={{ background: '#0F140F', border: '1px solid #213024', borderRadius: 8 }}
+          className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 sm:flex-row"
         >
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Left forearm mole"
-            className="flex-1 px-3 py-2 text-sm"
-            style={{
-              background: '#080B08',
-              border: '1px solid #213024',
-              borderRadius: 6,
-              color: '#E4F1E7',
-            }}
+            placeholder="e.g. Left forearm, near the wrist"
+            aria-label="Mole name"
+            className="flex-1 rounded-xl border border-line bg-paper px-4 py-2.5 text-sm placeholder:text-ink-soft/70"
           />
           <button
             type="submit"
             disabled={submitting || !name.trim()}
-            className="px-4 py-2 text-sm"
-            style={{
-              background: '#3ED97F',
-              color: '#080B08',
-              borderRadius: 6,
-              fontWeight: 600,
-              opacity: submitting || !name.trim() ? 0.6 : 1,
-            }}
+            className="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
           >
             {submitting ? 'Adding…' : 'Add mole'}
           </button>
         </form>
 
-        {error ? (
-          <p className="text-sm" style={{ color: '#E1584A' }}>
-            {error}
-          </p>
-        ) : null}
+        {error ? <p className="text-sm text-high">{error}</p> : null}
 
         {!moles ? (
-          <p className="text-sm" style={{ color: '#7CA98A' }}>
-            Loading…
-          </p>
+          <p className="text-sm text-ink-soft">Loading…</p>
         ) : moles.length === 0 ? (
-          <p className="text-sm" style={{ color: '#7CA98A' }}>
-            No moles yet — add one above to get started.
+          <p className="rounded-2xl border border-dashed border-line p-8 text-center text-sm text-ink-soft">
+            No moles yet. Add your first one above, then take a photo to get a baseline.
           </p>
         ) : (
-          <ul className="flex flex-col gap-3">
+          <ul className="grid gap-4 sm:grid-cols-2">
             {moles.map((mole) => {
               const latest = mole.scans[0]
+              const tier = latest ? riskTier(latest.riskScore) : null
               return (
-                <li
-                  key={mole.id}
-                  className="flex items-center justify-between gap-3 p-5"
-                  style={{ background: '#0F140F', border: '1px solid #213024', borderRadius: 8 }}
-                >
-                  <div className="flex flex-col gap-0.5">
-                  <Link href={`/moles/${mole.id}`} style={{ color: '#3ED97F' }}>{mole.name}</Link>
-                    <span className="text-sm" style={{ color: '#7CA98A' }}>
-                      Added {formatDate(mole.createdAt)}
-                    </span>
-                  </div>
-                  {latest ? (
-                    <span
-                      className="px-2.5 py-1 text-xs uppercase tracking-wide"
-                      style={{
-                        color: TIER_COLOR[riskTier(latest.riskScore)],
-                        border: `1px solid ${TIER_COLOR[riskTier(latest.riskScore)]}`,
-                        borderRadius: 6,
-                      }}
-                    >
-                      {riskTier(latest.riskScore)}
-                    </span>
-                  ) : (
-                    <span className="text-sm" style={{ color: '#7CA98A' }}>
-                      No scans yet
-                    </span>
-                  )}
+                <li key={mole.id}>
+                  <Link
+                    href={`/moles/${mole.id}`}
+                    className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-5 transition-colors hover:border-brand"
+                  >
+                    <RiskLens score={latest ? latest.riskScore : null} size={64} />
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="truncate font-display text-lg font-semibold">{mole.name}</span>
+                      <span className="text-sm text-ink-soft">Added {formatDate(mole.createdAt)}</span>
+                      {tier ? (
+                        <span
+                          className="mt-1 w-fit rounded-full px-3 py-0.5 text-xs font-semibold"
+                          style={{ color: TIER[tier].color, background: TIER[tier].soft }}
+                        >
+                          {TIER[tier].label}
+                        </span>
+                      ) : (
+                        <span className="mt-1 text-sm text-ink-soft">No scans yet</span>
+                      )}
+                    </div>
+                  </Link>
                 </li>
               )
             })}
           </ul>
         )}
-      </div>
-    </main>
+      </main>
+    </>
   )
 }

@@ -1,16 +1,15 @@
 'use client'
 
-import { Fraunces, Inter } from 'next/font/google'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-
-const fraunces = Fraunces({ subsets: ['latin'] })
-const inter = Inter({ subsets: ['latin'] })
+import AppNav from '@/components/AppNav'
+import RiskLens, { riskTier, TIER } from '@/components/RiskLens'
 
 type ScanSummary = {
   id: string
+  moleId: string
   riskScore: number
   createdAt: string
   mole: { name: string }
@@ -27,22 +26,11 @@ type DashboardData = {
   scanCount: number
   highCount: number
   medCount: number
+  topRiskScore: number | null
   upcomingCount: number
   upcomingAppointments: AppointmentSummary[]
   recentScans: ScanSummary[]
 }
-
-function riskTier(riskScore: number): 'low' | 'med' | 'high' {
-  if (riskScore < 0.35) return 'low'
-  if (riskScore < 0.65) return 'med'
-  return 'high'
-}
-
-const TIER_COLOR = {
-  low: '#5FBF7A',
-  med: '#D6A855',
-  high: '#E1584A',
-} as const
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, {
@@ -52,9 +40,30 @@ function formatDate(value: string) {
   })
 }
 
+function headline(data: DashboardData) {
+  if (data.highCount > 0) {
+    return {
+      text:
+        data.highCount === 1
+          ? '1 mole needs a dermatologist'
+          : `${data.highCount} moles need a dermatologist`,
+      detail: 'Book a visit soon and bring your scan history.',
+    }
+  }
+  if (data.medCount > 0) {
+    return {
+      text: data.medCount === 1 ? '1 mole is worth watching' : `${data.medCount} moles are worth watching`,
+      detail: 'Scan again in a few weeks to see if anything changes.',
+    }
+  }
+  if (data.moleCount > 0) {
+    return { text: 'Everything looks steady', detail: 'Keep scanning regularly to track changes.' }
+  }
+  return { text: 'Start with your first mole', detail: 'Add a mole, then take a photo to get a baseline.' }
+}
+
 export default function DashboardPage() {
   const router = useRouter()
-  const [email, setEmail] = useState<string | null>(null)
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState('')
 
@@ -67,8 +76,6 @@ export default function DashboardPage() {
         router.replace('/login')
         return
       }
-      if (cancelled) return
-      setEmail(auth.user.email ?? auth.user.id)
 
       const response = await fetch(`/api/dashboard?patientId=${encodeURIComponent(auth.user.id)}`)
       const result = await response.json()
@@ -78,7 +85,6 @@ export default function DashboardPage() {
         setError(result.error ?? 'Failed to load dashboard.')
         return
       }
-
       setData(result)
     }
 
@@ -91,171 +97,131 @@ export default function DashboardPage() {
     }
   }, [router])
 
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
-  const hero =
-    data && data.highCount > 0
-      ? {
-          text: `${data.highCount} mole(s) need a dermatologist`,
-          color: '#CE6C56',
-        }
-      : data && data.medCount > 0
-        ? {
-            text: `${data.medCount} mole(s) worth watching`,
-            color: '#D6A855',
-          }
-        : data && data.moleCount > 0
-          ? { text: 'Everything looks steady', color: '#5FBF7A' }
-          : { text: 'No moles tracked yet', color: '#7CA98A' }
+  const hero = data ? headline(data) : null
 
   return (
-    <main
-    className={`${inter.className} min-h-screen`}
-      style={{ background: '#080B08', color: '#E4F1E7' }}
-    >
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
-        <header className="flex items-center justify-between gap-4">
-          <p className="text-sm" style={{ color: '#7CA98A' }}>
-            Welcome, {email ?? '…'}
-          </p>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="px-3 py-1.5 text-sm"
-            style={{
-              background: '#3ED97F',
-              color: '#080B08',
-              borderRadius: 7,
-              fontWeight: 600,
-            }}
-          >
-            Log out
-          </button>
-        </header>
+    <>
+      <AppNav />
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8">
+        {!data && !error ? <p className="text-sm text-ink-soft">Loading…</p> : null}
+        {error ? <p className="text-sm text-high">{error}</p> : null}
 
-        {!data && !error ? (
-          <p className="text-sm" style={{ color: '#7CA98A' }}>
-            Loading…
-          </p>
-        ) : null}
-
-        {error ? (
-          <p className="text-sm" style={{ color: '#E1584A' }}>
-            {error}
-          </p>
-        ) : null}
-
-        {data ? (
+        {data && hero ? (
           <>
-            <section className="flex flex-col gap-5">
-              <h1
-                className={`${fraunces.className} text-4xl leading-tight`}
-                style={{ color: hero.color }}
-              >
-                {hero.text}
-              </h1>
-              <div className="flex gap-8 text-sm" style={{ color: '#7CA98A' }}>
-                <span>
-                  <strong style={{ color: '#E4F1E7' }}>{data.moleCount}</strong> moles
-                </span>
-                <span>
-                  <strong style={{ color: '#E4F1E7' }}>{data.scanCount}</strong> scans
-                </span>
-                <span>
-                  <strong style={{ color: '#E4F1E7' }}>{data.upcomingCount}</strong> upcoming
-                </span>
+            {/* Hero: the lens */}
+            <section className="flex flex-col items-center gap-8 rounded-3xl border border-line bg-surface p-8 sm:flex-row sm:p-10">
+              <RiskLens score={data.topRiskScore} size={168} />
+              <div className="flex flex-col gap-4 text-center sm:text-left">
+                <div className="flex flex-col gap-2">
+                  <h1 className="font-display text-4xl font-semibold leading-tight tracking-tight">
+                    {hero.text}
+                  </h1>
+                  <p className="max-w-md text-ink-soft">{hero.detail}</p>
+                </div>
+                <dl className="flex justify-center gap-6 text-sm sm:justify-start">
+                  <div>
+                    <dt className="text-ink-soft">Moles</dt>
+                    <dd className="font-display text-xl font-semibold">{data.moleCount}</dd>
+                  </div>
+                  <div className="border-l border-line pl-6">
+                    <dt className="text-ink-soft">Scans</dt>
+                    <dd className="font-display text-xl font-semibold">{data.scanCount}</dd>
+                  </div>
+                  <div className="border-l border-line pl-6">
+                    <dt className="text-ink-soft">Upcoming visits</dt>
+                    <dd className="font-display text-xl font-semibold">{data.upcomingCount}</dd>
+                  </div>
+                </dl>
               </div>
             </section>
 
-            <section
-              className="flex flex-col gap-4 p-6"
-              style={{
-                background: '#0F140F',
-                border: '1px solid #213024',
-                borderRadius: 8,
-              }}
-            >
-              <h2 className={`${fraunces.className} text-xl`} style={{ color: '#3ED97F' }}>
-                Recent scans
-              </h2>
-              {data.recentScans.length === 0 ? (
-                <p className="text-sm" style={{ color: '#7CA98A' }}>
-                  No scans yet. Add a mole and take a first photo to see results here.
-                </p>
-              ) : (
-                <ul className="flex flex-col gap-3">
-                  {data.recentScans.map((scan) => {
-                    const tier = riskTier(scan.riskScore)
-                    return (
-                      <li
-                        key={scan.id}
-                        className="flex items-center justify-between gap-3 py-1"
-                      >
-                        <div className="flex flex-col gap-0.5">
-                          <span>{scan.mole.name}</span>
-                          <span className="text-sm" style={{ color: '#7CA98A' }}>
-                            {formatDate(scan.createdAt)}
-                          </span>
-                        </div>
-                        <span
-                          className="px-2.5 py-1 text-xs uppercase tracking-wide"
-                          style={{
-                            color: TIER_COLOR[tier],
-                            border: `1px solid ${TIER_COLOR[tier]}`,
-                            borderRadius: 6,
-                          }}
-                        >
-                          {tier}
-                        </span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </section>
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Recent scans */}
+              <section className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-6">
+                <h2 className="font-display text-xl font-semibold">Recent scans</h2>
+                {data.recentScans.length === 0 ? (
+                  <div className="flex flex-col items-start gap-3">
+                    <p className="text-sm text-ink-soft">
+                      No scans yet. Add a mole and take a first photo to see results here.
+                    </p>
+                    <Link href="/moles" className="text-sm font-semibold text-brand">
+                      Add a mole
+                    </Link>
+                  </div>
+                ) : (
+                  <ul className="flex flex-col divide-y divide-line">
+                    {data.recentScans.map((scan) => {
+                      const tier = riskTier(scan.riskScore)
+                      return (
+                        <li key={scan.id}>
+                          <Link
+                            href={`/moles/${scan.moleId}`}
+                            className="flex items-center gap-4 py-3 transition-opacity hover:opacity-80"
+                          >
+                            <RiskLens score={scan.riskScore} size={44} />
+                            <div className="flex flex-1 flex-col">
+                              <span className="font-medium">{scan.mole.name}</span>
+                              <span className="text-sm text-ink-soft">{formatDate(scan.createdAt)}</span>
+                            </div>
+                            <span
+                              className="rounded-full px-3 py-1 text-xs font-semibold"
+                              style={{ color: TIER[tier].color, background: TIER[tier].soft }}
+                            >
+                              {TIER[tier].label}
+                            </span>
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </section>
 
-            <section
-              className="flex flex-col gap-4 p-6"
-              style={{
-                background: '#0F140F',
-                border: '1px solid #213024',
-                borderRadius: 8,
-              }}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <h2 className={`${fraunces.className} text-xl`} style={{ color: '#3ED97F' }}>
-                  Upcoming appointments
-                </h2>
-                <Link href="/appointments" className="text-sm" style={{ color: '#7CA98A' }}>
-                  Manage →
-                </Link>
-              </div>
-              {data.upcomingAppointments.length === 0 ? (
-                <p className="text-sm" style={{ color: '#7CA98A' }}>
-                  No upcoming appointments. When you book one, it will appear here.
-                </p>
-              ) : (
-                <ul className="flex flex-col gap-3">
-                  {data.upcomingAppointments.map((appointment) => (
-                    <li
-                      key={appointment.id}
-                      className="flex items-center justify-between gap-3 py-1"
-                    >
-                      <span>{appointment.doctorName ?? 'Doctor'}</span>
-                      <span className="text-sm" style={{ color: '#7CA98A' }}>
-                        {formatDate(appointment.date)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+              {/* Upcoming appointments */}
+              <section className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="font-display text-xl font-semibold">Upcoming visits</h2>
+                  <Link href="/appointments" className="text-sm font-semibold text-brand">
+                    Manage
+                  </Link>
+                </div>
+                {data.upcomingAppointments.length === 0 ? (
+                  <div className="flex flex-col items-start gap-3">
+                    <p className="text-sm text-ink-soft">No visits booked.</p>
+                    <Link href="/appointments" className="text-sm font-semibold text-brand">
+                      Book an appointment
+                    </Link>
+                  </div>
+                ) : (
+                  <ul className="flex flex-col divide-y divide-line">
+                    {data.upcomingAppointments.map((appointment) => {
+                      const when = new Date(appointment.date)
+                      return (
+                        <li key={appointment.id} className="flex items-center gap-4 py-3">
+                          <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-brand-soft text-brand">
+                            <span className="font-display text-lg font-semibold leading-none">
+                              {when.getDate()}
+                            </span>
+                            <span className="text-xs leading-tight">
+                              {when.toLocaleDateString(undefined, { month: 'short' })}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{appointment.doctorName ?? 'Doctor'}</span>
+                            <span className="text-sm text-ink-soft">
+                              {when.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </section>
+            </div>
           </>
         ) : null}
-      </div>
-    </main>
+      </main>
+    </>
   )
 }

@@ -44,10 +44,14 @@ export async function GET(request: Request) {
 
     let highCount = 0
     let medCount = 0
+    let topRiskScore: number | null = null
 
     for (const mole of moles) {
       const latest = mole.scans[0]
       if (!latest) continue
+      if (topRiskScore === null || latest.riskScore > topRiskScore) {
+        topRiskScore = latest.riskScore
+      }
       const tier = riskTier(latest.riskScore)
       if (tier === 'high') highCount += 1
       else if (tier === 'med') medCount += 1
@@ -58,6 +62,7 @@ export async function GET(request: Request) {
       scanCount,
       highCount,
       medCount,
+      topRiskScore,
       upcomingCount,
       upcomingAppointments,
       recentScans,
